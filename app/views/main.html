@@ -1,0 +1,31 @@
+<div ng-controller="MainCtrl">
+
+<div style="width:{{height}}px;">
+	Max Iterations: <input ng-model="max" ng-change="draw()" type="range" min="5" max="200" step="1"> {{max}}
+	<button ng-click='reset()' style="float:right;">Reset</button>
+</div>
+
+<div style="width:{{width}}px;">
+	<span>{{x1 | number}} + {{y2 | number}}<i>i</i></span>
+	<span style="float:right;">{{x2 | number}} + {{y2 | number}}<i>i</i></span>
+</div>
+
+<div style="width:{{width}}px;
+            height:{{height}}px;
+            background-image:url({{fractal}});
+			background-position-x: {{x}}px;
+			background-position-y: {{y}}px;
+			background-repeat: no-repeat;
+			background-size: {{scale}}%;"
+
+			rectangledrag>
+</div>
+
+<div style="width:{{width}}px;">
+	<span>{{x1 | number}} + {{y1 | number}}<i>i</i></span>
+	<span style="color:yellow">{{message}}</span>
+	<span style="float:right;">{{x2 | number}} + {{y1 | number}}<i>i</i></span>
+</div>
+
+</div>
+
