@@ -93,8 +93,8 @@ angular.module('angularMandelbrotApp')
     $scope.x = 0;
     $scope.y = 0;
     $scope.scale = 100;
-    $scope.fractal = 'images/default.png';
     $scope.message='';
+    $scope.draw();
   };
   
   $scope.draw = function() {
