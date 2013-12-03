@@ -1,1 +1,0 @@
-This is my first angular.js project. It renders images of the Mandelbrot set and allows the user to zoom.
