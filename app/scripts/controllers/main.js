@@ -21,119 +21,120 @@ function getBox(startX, startY, event) {
           l:l};
 }
 
-function Complex(real, imaginary) {
-  if (isNaN(real) || isNaN(imaginary)) {
-    throw new TypeError();
-  }
-  this.r = real;
-  this.i = imaginary;
-}
-
-Complex.prototype.add = function(that) {
-  return new Complex(this.r + that.r, this.i + that.i);
-};
-
-Complex.prototype.square = function() {
-  return new Complex(this.r * this.r - this.i * this.i, 2 * this.r * this.i);
-};
-
-Complex.prototype.abs2 = function() {
-  return this.r * this.r + this.i * this.i;
-};
-
-
-function iterate(x,y,max){
-  var z = new Complex(0, 0);
-  var c = new Complex(x, y);
-  for (var i=0; i<max && z.abs2() < 4; ++i) {
-    z = z.square().add(c);
-  }
-  return i;
-}
-
 
 function colour(i, max) {
-  var s = i / max;
-  if (Math.abs(s - 1.0) < 1e-6) {
+  if (i == 0) {
     return 'rgb(0,0,0)';
   }
+  var s = i / max;
   return 'rgb(' + Math.floor(255 * s * s) + ',' + Math.floor(255 * Math.sqrt(s)) + ',' + Math.floor(255 * (1 - s * s)) + ')';
 }
 
+function MandelbrotSet(x1, y1, x2, y2, width, height) {
+  this.x1 = x1;
+  this.y1 = y1;
+  this.x2 = x2;
+  this.y2 = y2;
+  this.width = width;
+  this.height = height;
+  this.re = new Float64Array(width * height);
+  this.im = new Float64Array(width * height);
+  this.n = new Int32Array(width * height);
+  this.steps = 0;
+  for (var idx = 0; idx < width * height; idx++) {
+    this.re[idx] = 0.0;
+    this.im[idx] = 0.0;
+    this.n[idx] = 0;
+  }
+  this.canvas = document.createElement('canvas');
+  this.canvas.setAttribute('width', this.width);
+  this.canvas.setAttribute('height', this.height);
+  this.ctx = this.canvas.getContext('2d');
+}
 
-function drawFractal(x1, y1, x2, y2, width, height, max) {
-  var c = document.createElement('canvas');
-  c.setAttribute('width', width);
-  c.setAttribute('height', height);
-  var ctx=c.getContext('2d');
-  
-  for (var i=0; i<width; ++i) {
-    for (var j=0; j<height; ++j) {
-      var x = x1 + i * (x2 - x1) / width;
-      var y = y2 + j * (y1 - y2) / height;
-      ctx.fillStyle = colour(iterate(x, y, max), max);
-      ctx.fillRect(i, j, 1, 1);
+MandelbrotSet.prototype.iterate = function(steps) {
+  var idx = 0
+  for (var i = 0; i < this.width; i++) {
+    var c_re = this.x1 + i * (this.x2 - this.x1) / (this.width - 1);
+    for (var j = 0; j < this.width; j++) {
+      if (this.n[idx] == 0) {
+        var c_im = this.y2 + j * (this.y1 - this.y2) / (this.height - 1);
+        var re = this.re[idx];
+        var im = this.im[idx];
+        for (var step = 1; step <= steps; step++) {
+          // z = z**2 + c
+          var next_re = re*re - im*im + c_re;
+          var next_im = 2*re*im + c_im;
+          re = next_re;
+          im = next_im;
+          if (re*re + im*im >= 4) {
+            this.n[idx] = this.steps + step;
+            break;
+          }
+        }
+        this.re[idx] = re;
+        this.im[idx] = im;
+      }
+      idx++;
+    }
+  }
+  this.steps += steps;
+}
+
+MandelbrotSet.prototype.draw = function() {
+  var idx = 0; 
+  for (var i = 0; i < this.width; ++i) {
+    for (var j = 0; j < this.height; ++j) {
+      this.ctx.fillStyle = colour(this.n[idx], this.steps);
+      this.ctx.fillRect(i, j, 1, 1);
+      idx++;
     }
   }
 
-  return c.toDataURL('image/png');
+  return this.canvas.toDataURL('image/png');
 }
 
 
 angular.module('angularMandelbrotApp')
-  .controller('MainCtrl', function ($scope) {
+  .controller('MainCtrl', function ($scope, $interval) {
   $scope.reset = function() {
     $scope.width = 600;
     $scope.height = 600;
-    $scope.x1 = -2;
-    $scope.y1 = -1.2;
-    $scope.x2 = 0.5;
-    $scope.y2 = 1.2;
-    $scope.max = 50;
-    $scope.x = 0;
-    $scope.y = 0;
-    $scope.scale = 100;
+    $scope.step = 50
+    $scope.max = 100000;
     $scope.message='';
+    $scope.x1 = -2
+    $scope.x2 = 0.5
+    $scope.y1 = -1.25
+    $scope.y2 = 1.25
     $scope.draw();
   };
-  
+
   $scope.draw = function() {
+    if ('drawPromise' in $scope) {
+      $interval.cancel($scope.drawPromise)
+      delete $scope.drawPromise
+    }
+    $scope.set = new MandelbrotSet($scope.x1, $scope.y1, $scope.x2, $scope.y2, $scope.width, $scope.height);
     $scope.message='Working...';
-    window.setTimeout(function() {
-      $scope.x=0;
-      $scope.y=0;
-      $scope.scale=100;
-      $scope.fractal = drawFractal(parseFloat($scope.x1),
-                                   parseFloat($scope.y1),
-                                   parseFloat($scope.x2),
-                                   parseFloat($scope.y2),
-                                   parseFloat($scope.width),
-                                   parseFloat($scope.height),
-                                   parseFloat($scope.max));
-      $scope.message='';
-      $scope.$apply();
+    $scope.drawPromise = $interval(function() {
+      $scope.set.iterate($scope.step)
+      $scope.fractal = $scope.set.draw()
+      if ($scope.set.steps >= $scope.max) {
+        $scope.message='';
+        $interval.cancel($scope.drawPromise);
+        delete $scope.drawPromise
+      }
     },50);
-  };
+  }
   
   $scope.zoom = function(x1, y1, x2, y2) {
-    var scale = $scope.width/Math.abs(x2-x1);
-    
-    $scope.x=($scope.x -x1)*scale;
-    $scope.y=($scope.y - y2)*scale;
-    $scope.scale*=scale;
-    
-    x1 = $scope.x1 + x1 * ($scope.x2 - $scope.x1) / $scope.width;
-    x2 = $scope.x1 + x2 * ($scope.x2 - $scope.x1) / $scope.width;
-    y1 = $scope.y2 - y1 * ($scope.y2 - $scope.y1) / $scope.height;
-    y2 = $scope.y2 - y2 * ($scope.y2 - $scope.y1) / $scope.height;
-    
-    $scope.x1 = x1;
-    $scope.y1 = y1;
-    $scope.x2 = x2;
-    $scope.y2 = y2;
+    $scope.x1 = $scope.x1 + x1 * ($scope.x2 - $scope.x1) / ($scope.width - 1);
+    $scope.x2 = $scope.x1 + x2 * ($scope.x2 - $scope.x1) / ($scope.width - 1);
+    $scope.y1 = $scope.y2 - y1 * ($scope.y2 - $scope.y1) / ($scope.height - 1);
+    $scope.y2 = $scope.y2 - y2 * ($scope.y2 - $scope.y1) / ($scope.height - 1);
     
     $scope.draw();
-    $scope.$apply();
   };
   
   if (!$scope.initialised) {
