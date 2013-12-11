@@ -30,7 +30,7 @@ function colour(i, max) {
   return 'rgb(' + Math.floor(255 * s * s) + ',' + Math.floor(255 * Math.sqrt(s)) + ',' + Math.floor(255 * (1 - s * s)) + ')';
 }
 
-function MandelbrotSet(x1, y1, x2, y2, width, height) {
+function MandelbrotSet(canvas, x1, y1, x2, y2, width, height) {
   this.x1 = x1;
   this.y1 = y1;
   this.x2 = x2;
@@ -46,7 +46,7 @@ function MandelbrotSet(x1, y1, x2, y2, width, height) {
     this.im[idx] = 0.0;
     this.n[idx] = 0;
   }
-  this.canvas = document.createElement('canvas');
+  this.canvas = canvas
   this.canvas.setAttribute('width', this.width);
   this.canvas.setAttribute('height', this.height);
   this.ctx = this.canvas.getContext('2d');
@@ -91,7 +91,7 @@ MandelbrotSet.prototype.draw = function() {
     }
   }
 
-  return this.canvas.toDataURL('image/png');
+  //return this.canvas.toDataURL('image/png');
 }
 
 
@@ -115,11 +115,12 @@ angular.module('angularMandelbrotApp')
       $interval.cancel($scope.drawPromise)
       delete $scope.drawPromise
     }
-    $scope.set = new MandelbrotSet($scope.x1, $scope.y1, $scope.x2, $scope.y2, $scope.width, $scope.height);
+    $scope.fractal = document.getElementsByTagName('canvas')[0]
+    $scope.set = new MandelbrotSet($scope.fractal, $scope.x1, $scope.y1, $scope.x2, $scope.y2, $scope.width, $scope.height);
     $scope.message='Working...';
     $scope.drawPromise = $interval(function() {
       $scope.set.iterate($scope.step)
-      $scope.fractal = $scope.set.draw()
+      $scope.set.draw()
       if ($scope.set.steps >= $scope.max) {
         $scope.message='';
         $interval.cancel($scope.drawPromise);
@@ -150,7 +151,7 @@ angular.module('angularMandelbrotApp')
   return {
     restrict: 'A',
     link: function(scope, element){
-      var canvas = document.createElement('canvas');
+      var canvas = document.getElementsByTagName('canvas')[0];
       canvas.setAttribute('width', scope.width);
       canvas.setAttribute('height', scope.height);
       canvas.setAttribute('style', 'position:absolute');
@@ -168,8 +169,6 @@ angular.module('angularMandelbrotApp')
         $canvas.bind('mouseup', mouseup);
       });
       function mousemove(event) {
-        reset();
-
         var box = getBox(startX, startY, event);
         
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
@@ -180,7 +179,6 @@ angular.module('angularMandelbrotApp')
       function mouseup(event) {
         $canvas.unbind('mousemove', mousemove);
         $canvas.unbind('mouseup', mouseup);
-        reset();
 
         var box = getBox(startX, startY, event);
         
@@ -190,9 +188,6 @@ angular.module('angularMandelbrotApp')
                      Math.max(startX, startX + box.w),
                      Math.min(startY, startY + box.h));
         }
-      }
-      function reset(){
-        canvas.width = canvas.width;
       }
     }
   };
