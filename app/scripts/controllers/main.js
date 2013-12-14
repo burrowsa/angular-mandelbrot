@@ -21,34 +21,47 @@ function getBox(startX, startY, event) {
           l:l};
 }
 
+var RED   = [0xf1, 0xf8, 0xff, 0xcc, 0x99, 0x6a, 0x19, 0x09, 0x04, 0x00, 0x0c, 0x18, 0x39, 0x86];
+var GREEN = [0xe0, 0xc9, 0xaa, 0x80, 0x57, 0x34, 0x07, 0x01, 0x04, 0x07, 0x2c, 0x52, 0x7d, 0xb5];
+var BLUE  = [0xbf, 0x5f, 0x00, 0x00, 0x00, 0x03, 0x1a, 0x2f, 0x49, 0x64, 0x8a, 0xb1, 0xd1, 0xe5];
 
-function colour(i, max) {
-  if (i == 0) {
-    return 'rgb(0,0,0)';
-  }
-  var s = i / max;
-  return 'rgb(' + Math.floor(255 * s * s) + ',' + Math.floor(255 * Math.sqrt(s)) + ',' + Math.floor(255 * (1 - s * s)) + ')';
+function interpolate(COLOUR, idx) {
+  var f = Math.floor(idx);
+  var c1 = COLOUR[(f+8) % COLOUR.length];
+  var c2 = COLOUR[(f+9) % COLOUR.length];
+  var tween = idx - f;
+  return c1 + tween * (c2 - c1);
 }
 
-function MandelbrotSet(canvas, x1, y1, x2, y2, width, height) {
+function colour(i) {
+  if (i == 0) {
+    return [0, 0, 0];
+  }
+  var idx = Math.sqrt(i);
+  return [interpolate(RED, idx), interpolate(GREEN, idx), interpolate(BLUE, idx)];
+}
+
+function MandelbrotSet(canvas, x1, y1, x2, y2, width, height, dither) {
   this.x1 = x1;
   this.y1 = y1;
   this.x2 = x2;
   this.y2 = y2;
-  this.width = width;
-  this.height = height;
-  this.re = new Float64Array(width * height);
-  this.im = new Float64Array(width * height);
-  this.n = new Int32Array(width * height);
+  this.width = width * dither;
+  this.height = height * dither;
+  this.dither = dither
+  var pixels = this.width * this.height
+  this.re = new Float64Array(pixels);
+  this.im = new Float64Array(pixels);
+  this.n = new Int32Array(pixels);
   this.steps = 0;
-  for (var idx = 0; idx < width * height; idx++) {
+  for (var idx = 0; idx < pixels; idx++) {
     this.re[idx] = 0.0;
     this.im[idx] = 0.0;
     this.n[idx] = 0;
   }
   this.canvas = canvas
-  this.canvas.setAttribute('width', this.width);
-  this.canvas.setAttribute('height', this.height);
+  this.canvas.setAttribute('width', width);
+  this.canvas.setAttribute('height', height);
   this.ctx = this.canvas.getContext('2d');
 }
 
@@ -82,16 +95,27 @@ MandelbrotSet.prototype.iterate = function(steps) {
 }
 
 MandelbrotSet.prototype.draw = function() {
-  var idx = 0; 
-  for (var i = 0; i < this.width; ++i) {
-    for (var j = 0; j < this.height; ++j) {
-      this.ctx.fillStyle = colour(this.n[idx], this.steps);
-      this.ctx.fillRect(i, j, 1, 1);
-      idx++;
+  for (var i = 0; i < this.width; i += this.dither) {
+    for (var j = 0; j < this.height; j += this.dither) {
+      var dithered_colour = [0, 0, 0]
+      for (var i_dither = 0; i_dither < this.dither; ++i_dither) {
+        for (var j_dither = 0; j_dither < this.dither; ++j_dither) {
+          var idx = (i + i_dither) * this.height + (j + j_dither);
+          var p = colour(this.n[idx]);
+          dithered_colour[0] += p[0]
+          dithered_colour[1] += p[1]
+          dithered_colour[2] += p[2]
+        }
+      }
+      var scale = this.dither * this.dither;
+      var c = [
+          Math.round(dithered_colour[0] / scale),
+          Math.round(dithered_colour[1] / scale),
+          Math.round(dithered_colour[2] / scale)]
+      this.ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+      this.ctx.fillRect(i / this.dither, j / this.dither, 1, 1);
     }
   }
-
-  //return this.canvas.toDataURL('image/png');
 }
 
 
@@ -116,7 +140,7 @@ angular.module('angularMandelbrotApp')
       delete $scope.drawPromise
     }
     $scope.fractal = document.getElementsByTagName('canvas')[0]
-    $scope.set = new MandelbrotSet($scope.fractal, $scope.x1, $scope.y1, $scope.x2, $scope.y2, $scope.width, $scope.height);
+    $scope.set = new MandelbrotSet($scope.fractal, $scope.x1, $scope.y1, $scope.x2, $scope.y2, $scope.width, $scope.height, 2);
     $scope.message='Working...';
     $scope.drawPromise = $interval(function() {
       $scope.set.iterate($scope.step)
@@ -130,10 +154,14 @@ angular.module('angularMandelbrotApp')
   }
   
   $scope.zoom = function(x1, y1, x2, y2) {
-    $scope.x1 = $scope.x1 + x1 * ($scope.x2 - $scope.x1) / ($scope.width - 1);
-    $scope.x2 = $scope.x1 + x2 * ($scope.x2 - $scope.x1) / ($scope.width - 1);
-    $scope.y1 = $scope.y2 - y1 * ($scope.y2 - $scope.y1) / ($scope.height - 1);
-    $scope.y2 = $scope.y2 - y2 * ($scope.y2 - $scope.y1) / ($scope.height - 1);
+    var new_x1 = $scope.x1 + x1 * ($scope.x2 - $scope.x1) / ($scope.width - 1);
+    var new_x2 = $scope.x1 + x2 * ($scope.x2 - $scope.x1) / ($scope.width - 1);
+    var new_y1 = $scope.y2 - y1 * ($scope.y2 - $scope.y1) / ($scope.height - 1);
+    var new_y2 = $scope.y2 - y2 * ($scope.y2 - $scope.y1) / ($scope.height - 1);
+    $scope.x1 = new_x1
+    $scope.x2 = new_x2
+    $scope.y1 = new_y1
+    $scope.y2 = new_y2
     
     $scope.draw();
   };
