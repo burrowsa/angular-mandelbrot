@@ -151,6 +151,7 @@ angular.module('angularMandelbrotApp')
     $scope.message='Working...';
     $scope.drawPromise = $interval(function() {
       $scope.set.iterate($scope.step)
+      $scope.message=$scope.set.steps + ' steps...';
       $scope.set.draw()
       if ($scope.set.steps >= $scope.max) {
         $scope.message='';
