@@ -13,10 +13,16 @@ function getBox(startX, startY, event) {
   var currentY = event.offsetY;
   var w = currentX - startX;
   var h = currentY - startY;
-  var l = Math.min(Math.abs(w),Math.abs(h));
+  var l = Math.max(Math.abs(w),Math.abs(h));
   w = l * sign(w);
   h = l * sign(h);
-  return {w:w,
+  var x_mid = (startX + currentX) / 2.0;
+  var y_mid = (startY + currentY) / 2.0;
+  return {x1:x_mid - l/2,
+          x2:x_mid + l/2,
+          y1:y_mid + l/2,
+          y2:y_mid - l/2,
+          w:w,
           h:h,
           l:l};
 }
@@ -97,22 +103,23 @@ MandelbrotSet.prototype.iterate = function(steps) {
 MandelbrotSet.prototype.draw = function() {
   for (var i = 0; i < this.width; i += this.dither) {
     for (var j = 0; j < this.height; j += this.dither) {
-      var dithered_colour = [0, 0, 0]
-      for (var i_dither = 0; i_dither < this.dither; ++i_dither) {
-        for (var j_dither = 0; j_dither < this.dither; ++j_dither) {
-          var idx = (i + i_dither) * this.height + (j + j_dither);
+      var r_sum = 0;
+      var g_sum = 0;
+      var b_sum = 0;
+      for (var i_delta = 0; i_delta < this.dither; i_delta++) {
+        for (var j_delta = 0; j_delta < this.dither; j_delta++) {
+          var idx = (i + i_delta) * this.height + j + j_delta;
           var p = colour(this.n[idx]);
-          dithered_colour[0] += p[0]
-          dithered_colour[1] += p[1]
-          dithered_colour[2] += p[2]
+          r_sum += p[0];
+          g_sum += p[1];
+          b_sum += p[2];
         }
       }
       var scale = this.dither * this.dither;
-      var c = [
-          Math.round(dithered_colour[0] / scale),
-          Math.round(dithered_colour[1] / scale),
-          Math.round(dithered_colour[2] / scale)]
-      this.ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+      var r = Math.round(r_sum / scale);
+      var g = Math.round(g_sum / scale);
+      var b = Math.round(b_sum / scale);
+      this.ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
       this.ctx.fillRect(i / this.dither, j / this.dither, 1, 1);
     }
   }
@@ -197,12 +204,10 @@ angular.module('angularMandelbrotApp')
         $canvas.bind('mouseup', mouseup);
       });
       function mousemove(event) {
-        var box = getBox(startX, startY, event);
-        
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        ctx.fillRect(startX, startY, box.w, box.h);
+        ctx.fillRect(startX, startY, event.offsetX - startX, event.offsetY - startY);
         ctx.strokeStyle ='rgba(255,255,255,0.5)';
-        ctx.strokeRect(startX, startY, box.w, box.h);
+        ctx.strokeRect(startX, startY, event.offsetX - startX, event.offsetY - startY);
       }
       function mouseup(event) {
         $canvas.unbind('mousemove', mousemove);
@@ -211,10 +216,7 @@ angular.module('angularMandelbrotApp')
         var box = getBox(startX, startY, event);
         
         if (box.l>10) {
-          scope.zoom(Math.min(startX, startX + box.w),
-                     Math.max(startY, startY + box.h),
-                     Math.max(startX, startX + box.w),
-                     Math.min(startY, startY + box.h));
+          scope.zoom(box.x1, box.y1, box.x2, box.y2);
         }
       }
     }
