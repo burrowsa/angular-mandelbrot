@@ -58,7 +58,7 @@ function MandelbrotSet(canvas, x1, y1, x2, y2, width, height, dither) {
   var pixels = this.width * this.height
   this.re = new Float64Array(pixels);
   this.im = new Float64Array(pixels);
-  this.n = new Int32Array(pixels);
+  this.n = new Float64Array(pixels);
   this.steps = 0;
   for (var idx = 0; idx < pixels; idx++) {
     this.re[idx] = 0.0;
@@ -86,8 +86,15 @@ MandelbrotSet.prototype.iterate = function(steps) {
           var next_im = 2*re*im + c_im;
           re = next_re;
           im = next_im;
-          if (re*re + im*im >= 4) {
-            this.n[idx] = this.steps + step;
+
+          // Bail out at 2**16
+          var zn = re*re + im*im;
+          if (zn >= 2 << 16) {
+
+            // Normalized iteration count
+            var iteration = this.steps + step;
+            var nu = Math.log(Math.log(zn, 2) / 2, 2);
+            this.n[idx] = iteration + 1 - nu;
             break;
           }
         }
