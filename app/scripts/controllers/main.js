@@ -47,6 +47,18 @@ function colour(i) {
   return [interpolate(RED, idx), interpolate(GREEN, idx), interpolate(BLUE, idx)];
 }
 
+function createBlackImageData(canvas) {
+  var ctx = canvas.getContext('2d');
+  var data = ctx.createImageData(canvas.width, canvas.height);
+  for (var i = 0; i < data.data.height; i += 4) {
+    data.data[i] = 0;
+    data.data[i+1] = 0;
+    data.data[i+2] = 0;
+    data.data[i+3] = 255;  // Alpha channel
+  }
+  return data;
+}
+
 function MandelbrotSet(canvas, x1, y1, x2, y2, width, height, dither) {
   this.x1 = x1;
   this.y1 = y1;
@@ -68,7 +80,7 @@ function MandelbrotSet(canvas, x1, y1, x2, y2, width, height, dither) {
   this.canvas = canvas
   this.canvas.setAttribute('width', width);
   this.canvas.setAttribute('height', height);
-  this.ctx = this.canvas.getContext('2d');
+  this.imageData = createBlackImageData(this.canvas);
 }
 
 MandelbrotSet.prototype.iterate = function(steps) {
@@ -108,8 +120,9 @@ MandelbrotSet.prototype.iterate = function(steps) {
 }
 
 MandelbrotSet.prototype.draw = function() {
-  for (var i = 0; i < this.width; i += this.dither) {
-    for (var j = 0; j < this.height; j += this.dither) {
+  var dataIdx = 0;
+  for (var j = 0; j < this.height; j += this.dither) {
+    for (var i = 0; i < this.width; i += this.dither) {
       var r_sum = 0;
       var g_sum = 0;
       var b_sum = 0;
@@ -126,10 +139,13 @@ MandelbrotSet.prototype.draw = function() {
       var r = Math.round(r_sum / scale);
       var g = Math.round(g_sum / scale);
       var b = Math.round(b_sum / scale);
-      this.ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
-      this.ctx.fillRect(i / this.dither, j / this.dither, 1, 1);
+      this.imageData.data[dataIdx++] = r;
+      this.imageData.data[dataIdx++] = g;
+      this.imageData.data[dataIdx++] = b;
+      this.imageData.data[dataIdx++] = 255;  // opaque (alpha channel)
     }
   }
+  this.canvas.getContext('2d').putImageData(this.imageData, 0, 0);
 }
 
 
