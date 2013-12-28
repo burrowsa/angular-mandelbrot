@@ -107,6 +107,7 @@ MandelbrotSet.prototype.iterate = function(steps) {
             var iteration = this.steps + step;
             var nu = Math.log(Math.log(zn, 2) / 2, 2);
             this.n[idx] = iteration + 1 - nu;
+            this.refreshPoint(i, j);
             break;
           }
         }
@@ -119,32 +120,39 @@ MandelbrotSet.prototype.iterate = function(steps) {
   this.steps += steps;
 }
 
-MandelbrotSet.prototype.draw = function() {
-  var dataIdx = 0;
-  for (var j = 0; j < this.height; j += this.dither) {
-    for (var i = 0; i < this.width; i += this.dither) {
-      var r_sum = 0;
-      var g_sum = 0;
-      var b_sum = 0;
-      for (var i_delta = 0; i_delta < this.dither; i_delta++) {
-        for (var j_delta = 0; j_delta < this.dither; j_delta++) {
-          var idx = (i + i_delta) * this.height + j + j_delta;
-          var p = colour(this.n[idx]);
-          r_sum += p[0];
-          g_sum += p[1];
-          b_sum += p[2];
-        }
-      }
-      var scale = this.dither * this.dither;
-      var r = Math.round(r_sum / scale);
-      var g = Math.round(g_sum / scale);
-      var b = Math.round(b_sum / scale);
-      this.imageData.data[dataIdx++] = r;
-      this.imageData.data[dataIdx++] = g;
-      this.imageData.data[dataIdx++] = b;
-      this.imageData.data[dataIdx++] = 255;  // opaque (alpha channel)
+MandelbrotSet.prototype.refreshPoint = function(i, j) {
+  var real_i = Math.floor(i / this.dither)
+  var real_j = Math.floor(j / this.dither)
+
+  // Sum all values to be dithered together
+  var r_sum = 0;
+  var g_sum = 0;
+  var b_sum = 0;
+  var corner = (real_i * this.height + real_j) * this.dither
+  for (var i_delta = 0; i_delta < this.dither * this.height; i_delta += this.height) {
+    for (var j_delta = 0; j_delta < this.dither; j_delta++) {
+      var p = colour(this.n[corner + i_delta + j_delta]);
+      r_sum += p[0];
+      g_sum += p[1];
+      b_sum += p[2];
     }
   }
+
+  // Calculate the dithered value
+  var scale = this.dither * this.dither;
+  var r = Math.round(r_sum / scale);
+  var g = Math.round(g_sum / scale);
+  var b = Math.round(b_sum / scale);
+
+  // Write the value
+  var idx = (real_j * this.height / this.dither + real_i) * 4;
+  this.imageData.data[idx] = r;
+  this.imageData.data[idx+1] = g;
+  this.imageData.data[idx+2] = b;
+  this.imageData.data[idx+3] = 255;  // opaque (alpha channel)
+}
+
+MandelbrotSet.prototype.draw = function() {
   this.canvas.getContext('2d').putImageData(this.imageData, 0, 0);
 }
 
