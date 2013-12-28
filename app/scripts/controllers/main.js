@@ -81,9 +81,11 @@ function MandelbrotSet(canvas, x1, y1, x2, y2, width, height, dither) {
   this.canvas.setAttribute('width', width);
   this.canvas.setAttribute('height', height);
   this.imageData = createBlackImageData(this.canvas);
+  this.unknown = this.width * this.height
 }
 
-MandelbrotSet.prototype.iterate = function(steps) {
+MandelbrotSet.prototype.iterate = function(worksize) {
+  var steps = Math.floor(worksize * this.width * this.height / this.unknown)
   var idx = 0
   for (var i = 0; i < this.width; i++) {
     var c_re = this.x1 + i * (this.x2 - this.x1) / (this.width - 1);
@@ -108,6 +110,7 @@ MandelbrotSet.prototype.iterate = function(steps) {
             var nu = Math.log(Math.log(zn, 2) / 2, 2);
             this.n[idx] = iteration + 1 - nu;
             this.refreshPoint(i, j);
+            this.unknown--
             break;
           }
         }
@@ -118,6 +121,9 @@ MandelbrotSet.prototype.iterate = function(steps) {
     }
   }
   this.steps += steps;
+  if (this.unknown == 0) {
+    this.steps = Number.MAX_VALUE
+  }
 }
 
 MandelbrotSet.prototype.refreshPoint = function(i, j) {
