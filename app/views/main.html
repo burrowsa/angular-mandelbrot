@@ -2,6 +2,7 @@
 
 <div style="width:{{height}}px;">
 	Max Iterations: <input ng-model="max" ng-change="draw()" type="range" min="5" max="200" step="1"> {{max}}
+	<button ng-click='stopProcessing()' style="float:right;">Stop Processing</button>
 	<button ng-click='reset()' style="float:right;">Reset</button>
 </div>
 

@@ -128,6 +128,14 @@ MandelbrotSet.prototype.draw = function() {
 
 angular.module('angularMandelbrotApp')
   .controller('MainCtrl', function ($scope, $interval) {
+  $scope.stopProcessing = function() {
+    if ('drawPromise' in $scope) {
+      $interval.cancel($scope.drawPromise);
+      delete $scope.drawPromise;
+    }
+    $scope.message='';
+  }
+
   $scope.reset = function() {
     $scope.width = 600;
     $scope.height = 600;
@@ -142,11 +150,8 @@ angular.module('angularMandelbrotApp')
   };
 
   $scope.draw = function() {
-    if ('drawPromise' in $scope) {
-      $interval.cancel($scope.drawPromise)
-      delete $scope.drawPromise
-    }
-    $scope.fractal = document.getElementsByTagName('canvas')[0]
+    $scope.stopProcessing();
+    $scope.fractal = document.getElementsByTagName('canvas')[0];
     $scope.set = new MandelbrotSet($scope.fractal, $scope.x1, $scope.y1, $scope.x2, $scope.y2, $scope.width, $scope.height, 2);
     $scope.message='Working...';
     $scope.drawPromise = $interval(function() {
