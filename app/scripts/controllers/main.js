@@ -59,7 +59,7 @@ function createBlackImageData(canvas) {
   return data;
 }
 
-function MandelbrotSet(canvas, x1, y1, x2, y2, width, height, dither) {
+function MandelbrotSet(canvas, x1, y1, x2, y2, width, height, dither, max) {
   this.x1 = x1;
   this.y1 = y1;
   this.x2 = x2;
@@ -67,6 +67,7 @@ function MandelbrotSet(canvas, x1, y1, x2, y2, width, height, dither) {
   this.width = width * dither;
   this.height = height * dither;
   this.dither = dither
+  this.max = max;
   var pixels = this.width * this.height
   this.re = new Float64Array(pixels);
   this.im = new Float64Array(pixels);
@@ -90,7 +91,8 @@ function MandelbrotSet(canvas, x1, y1, x2, y2, width, height, dither) {
 
 MandelbrotSet.prototype.iterate = function(worksize) {
   // Perform at most (worksize * pixels) calculations
-  var last_step = this.steps + Math.floor(worksize * this.width * this.height / this.unknown);
+  var last_step = Math.min(this.max,
+      this.steps + Math.floor(worksize * this.width * this.height / this.unknown));
   var idx = 0
   for (var i = 0; i < this.width; i++) {
     var c_re = this.x1 + i * (this.x2 - this.x1) / (this.width - 1);
@@ -201,19 +203,22 @@ angular.module('angularMandelbrotApp')
     $scope.width = 600;
     $scope.height = 600;
     $scope.step = 50
-    $scope.max = 100000;
     $scope.message='';
     $scope.x1 = -2
     $scope.x2 = 0.5
     $scope.y1 = -1.25
     $scope.y2 = 1.25
+
+    // Smallest integer whose successor is not representable in JavaScript
+    $scope.max = Math.pow(2, 53);
+
     $scope.draw();
   };
 
   $scope.draw = function() {
     $scope.stopProcessing();
     $scope.fractal = document.getElementsByTagName('canvas')[0];
-    $scope.set = new MandelbrotSet($scope.fractal, $scope.x1, $scope.y1, $scope.x2, $scope.y2, $scope.width, $scope.height, 2);
+    $scope.set = new MandelbrotSet($scope.fractal, $scope.x1, $scope.y1, $scope.x2, $scope.y2, $scope.width, $scope.height, 2, $scope.max);
     $scope.message='Working...';
     $scope.drawPromise = $interval(function() {
       $scope.set.iterate($scope.step)
