@@ -40,7 +40,7 @@ function interpolate(COLOUR, idx) {
 }
 
 function colour(i) {
-  if (i == 0) {
+  if (i <= 0) {
     return [0, 0, 0];
   }
   var idx = Math.sqrt(i);
@@ -70,11 +70,15 @@ function MandelbrotSet(canvas, x1, y1, x2, y2, width, height, dither) {
   var pixels = this.width * this.height
   this.re = new Float64Array(pixels);
   this.im = new Float64Array(pixels);
+  this.h_re = new Float64Array(pixels);
+  this.h_im = new Float64Array(pixels);
   this.n = new Float64Array(pixels);
   this.steps = 0;
   for (var idx = 0; idx < pixels; idx++) {
     this.re[idx] = 0.0;
     this.im[idx] = 0.0;
+    this.h_re[idx] = 0.0;
+    this.h_im[idx] = 0.0;
     this.n[idx] = 0;
   }
   this.canvas = canvas
@@ -85,7 +89,8 @@ function MandelbrotSet(canvas, x1, y1, x2, y2, width, height, dither) {
 }
 
 MandelbrotSet.prototype.iterate = function(worksize) {
-  var steps = Math.floor(worksize * this.width * this.height / this.unknown)
+  // Perform at most (worksize * pixels) calculations
+  var last_step = this.steps + Math.floor(worksize * this.width * this.height / this.unknown);
   var idx = 0
   for (var i = 0; i < this.width; i++) {
     var c_re = this.x1 + i * (this.x2 - this.x1) / (this.width - 1);
@@ -94,21 +99,38 @@ MandelbrotSet.prototype.iterate = function(worksize) {
         var c_im = this.y2 + j * (this.y1 - this.y2) / (this.height - 1);
         var re = this.re[idx];
         var im = this.im[idx];
-        for (var step = 1; step <= steps; step++) {
+        var h_re = this.h_re[idx];
+        var h_im = this.h_im[idx];
+        for (var step = this.steps + 1; step <= last_step; step++) {
           // z = z**2 + c
           var next_re = re*re - im*im + c_re;
           var next_im = 2*re*im + c_im;
           re = next_re;
           im = next_im;
 
+          // cycle if h == z
+          if ((h_re == re) && (h_im == im)) {
+            this.n[idx] = -step;  // Definitely black
+            this.unknown--
+            break;
+          }
+
+          // Every other step, iterate h
+          if ((step % 2) == 0) {
+            // h = h**2 + c
+            next_re = h_re*h_re - h_im*h_im + c_re;
+            next_im = 2*h_re*h_im + c_im;
+            h_re = next_re;
+            h_im = next_im;
+          }
+
           // Bail out at 2**16
           var zn = re*re + im*im;
           if (zn >= 2 << 16) {
 
             // Normalized iteration count
-            var iteration = this.steps + step;
             var nu = Math.log(Math.log(zn, 2) / 2, 2);
-            this.n[idx] = iteration + 1 - nu;
+            this.n[idx] = step + 1 - nu;
             this.refreshPoint(i, j);
             this.unknown--
             break;
@@ -116,11 +138,13 @@ MandelbrotSet.prototype.iterate = function(worksize) {
         }
         this.re[idx] = re;
         this.im[idx] = im;
+        this.h_re[idx] = h_re;
+        this.h_im[idx] = h_im;
       }
       idx++;
     }
   }
-  this.steps += steps;
+  this.steps = last_step;
   if (this.unknown == 0) {
     this.steps = Number.MAX_VALUE
   }
